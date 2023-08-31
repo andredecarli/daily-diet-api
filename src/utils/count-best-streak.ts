@@ -16,14 +16,13 @@ export function bestStreak(data: Array<Meal>) {
   })
 
   let countStreak = 0
+  let bestStreak = 0
 
   for (const meal of dataWithDate) {
-    if (meal[1]) {
-      countStreak++
-    } else {
-      countStreak = 0
-    }
+    countStreak = meal[1] ? countStreak + 1 : 0
+
+    bestStreak = countStreak > bestStreak ? countStreak : bestStreak
   }
 
-  return countStreak
+  return bestStreak
 }
