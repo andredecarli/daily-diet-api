@@ -8,9 +8,6 @@ import { checkMealIdParam } from '../middlewares/check-meal-id-param'
 import { checkSessionIdExists } from '../middlewares/check-session-id-exists'
 
 export async function mealsRoutes(app: FastifyInstance) {
-  // Registrar uma refeição feita
-  // Deve estar relacionada a um usuário
-  // Campos: Nome, Descrição, Data e Hora, Está dentro ou não da dieta
   app.post('/', async (request, reply) => {
     let sessionId = request.cookies.sessionId
 
@@ -42,7 +39,6 @@ export async function mealsRoutes(app: FastifyInstance) {
     return reply.status(201).send()
   })
 
-  // Editar uma refeição, podendo alterar todos os campos acima
   app.put(
     '/:id',
     { preHandler: [checkSessionIdExists] },
@@ -58,7 +54,7 @@ export async function mealsRoutes(app: FastifyInstance) {
 
       const timestamp = await validateDateTimeFormat(date, time, reply)
 
-      await knex('meals')
+      const modifiedMeals = await knex('meals')
         .where({
           id,
           session_id: sessionId,
@@ -70,11 +66,12 @@ export async function mealsRoutes(app: FastifyInstance) {
           on_diet: onDiet,
         })
 
-      return reply.status(204).send()
+      if (modifiedMeals !== 0) return reply.status(204).send()
+      else
+        return reply.status(400).send({ message: 'No meals found for editing' })
     },
   )
 
-  // Apagar uma refeição
   app.delete(
     '/:id',
     { preHandler: [checkSessionIdExists] },
@@ -93,14 +90,12 @@ export async function mealsRoutes(app: FastifyInstance) {
     },
   )
 
-  // Listar todas as refeições do usuário
   app.get('/', { preHandler: [checkSessionIdExists] }, async (request) => {
     const { sessionId } = request.cookies
     const meals = await knex('meals').where('session_id', sessionId).select()
     return { meals }
   })
 
-  // Listar uma única refeição
   app.get(
     '/:id',
     { preHandler: [checkSessionIdExists] },
@@ -118,11 +113,6 @@ export async function mealsRoutes(app: FastifyInstance) {
     },
   )
 
-  // Metricas de um usuario
-  // Quantidade total de refeições registradas
-  // Quantidade total de refeições dentro da dieta
-  // Quantidade total de refeições fora da dieta
-  // Melhor sequencia de refeições dentro da dieta
   app.get(
     '/metrics',
     { preHandler: [checkSessionIdExists] },
