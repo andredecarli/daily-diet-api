@@ -3,6 +3,7 @@ import { knex } from '../database'
 import { randomUUID } from 'crypto'
 import { z } from 'zod'
 import { validateDateFormat, validateTimeFormat } from '../utils/format'
+import { bestStreak } from '../utils/count-best-streak'
 
 export async function mealsRoutes(app: FastifyInstance) {
   // Registrar uma refeição feita
@@ -174,6 +175,24 @@ export async function mealsRoutes(app: FastifyInstance) {
   // Quantidade total de refeições fora da dieta
   // Melhor sequencia de refeições dentro da dieta
   app.get('/metrics', async () => {
-    return { message: 'TODO: Metrics from user' }
+    const meals = await knex('meals').select('timestamp', 'on_diet')
+    const mealsOnDiet = await knex('meals')
+      .where('on_diet', true)
+      .count('*', { as: 'count' })
+      .first()
+    const mealsOffDiet = await knex('meals')
+      .where('on_diet', false)
+      .count('*', { as: 'count' })
+      .first()
+    const bestOnDietStreak = bestStreak(meals)
+
+    const metrics = {
+      totalMeals: meals.length,
+      mealsOnDiet: mealsOnDiet?.count,
+      mealsOffDiet: mealsOffDiet?.count,
+      bestOnDietStreak,
+    }
+
+    return { metrics }
   })
 }
