@@ -4,50 +4,21 @@ import { randomUUID } from 'crypto'
 import { z } from 'zod'
 import { validateDateFormat, validateTimeFormat } from '../utils/format'
 import { bestStreak } from '../utils/count-best-streak'
+import { checkMealBodySchema } from '../middlewares/check-meal-body-schema'
+import { validateDateTimeFormat } from '../middlewares/check-date-time-format'
+import { checkMealIdParam } from '../middlewares/check-meal-id-param'
 
 export async function mealsRoutes(app: FastifyInstance) {
   // Registrar uma refeição feita
   // Deve estar relacionada a um usuário
   // Campos: Nome, Descrição, Data e Hora, Está dentro ou não da dieta
   app.post('/', async (request, reply) => {
-    const createMealBodySchema = z.object({
-      name: z.string(),
-      description: z.string(),
-      date: z.string(),
-      time: z.string(),
-      on_diet: z.boolean(),
-    })
+    const body = await checkMealBodySchema(request, reply)
 
-    const body = createMealBodySchema.safeParse(request.body)
+    const { name, description, date, time } = body
+    const onDiet = body.on_diet
 
-    if (!body.success) {
-      return reply.status(400).send({
-        message:
-          'Invalid data sent. Expected name:string, description:string, date:string, time:string, on_diet:boolean',
-      })
-    }
-
-    const { name, description, date, time } = body.data
-    const onDiet = body.data.on_diet
-
-    // Validate Date Format
-    if (!validateDateFormat(date)) {
-      return reply.status(400).send({
-        message: 'Invalid date format. Expected YYYY-MM-DD',
-      })
-    }
-    // Validate Time Format
-    if (!validateTimeFormat(time)) {
-      return reply.status(400).send({
-        message: 'Invalid time format. Expected HH:mm',
-      })
-    }
-    const timestamp = new Date(date + 'T' + time).toString()
-    if (timestamp.toString() === 'Invalid Date') {
-      return reply.status(400).send({
-        message: 'Invalid date',
-      })
-    }
+    const timestamp = await validateDateTimeFormat(date, time, reply)
 
     await knex('meals').insert({
       id: randomUUID(),
@@ -62,57 +33,14 @@ export async function mealsRoutes(app: FastifyInstance) {
 
   // Editar uma refeição, podendo alterar todos os campos acima
   app.put('/:id', async (request, reply) => {
-    const getMealParamsSchema = z.object({
-      id: z.string().uuid(),
-    })
+    const { id } = await checkMealIdParam(request, reply)
 
-    const params = getMealParamsSchema.safeParse(request.params)
+    const body = await checkMealBodySchema(request, reply)
 
-    if (!params.success) {
-      return reply.status(400).send({
-        message: 'Invalid Meal ID. Expected a UUID',
-      })
-    }
+    const { name, description, date, time } = body
+    const onDiet = body.on_diet
 
-    const { id } = params.data
-
-    const createMealBodySchema = z.object({
-      name: z.string(),
-      description: z.string(),
-      date: z.string(),
-      time: z.string(),
-      on_diet: z.boolean(),
-    })
-    const body = createMealBodySchema.safeParse(request.body)
-
-    if (!body.success) {
-      return reply.status(400).send({
-        message:
-          'Invalid data sent. Expected name:string, description:string, date:string, time:string, on_diet:boolean',
-      })
-    }
-
-    const { name, description, date, time } = body.data
-    const onDiet = body.data.on_diet
-
-    // Validate Date Format
-    if (!validateDateFormat(date)) {
-      return reply.status(400).send({
-        message: 'Invalid date format. Expected YYYY-MM-DD',
-      })
-    }
-    // Validate Time Format
-    if (!validateTimeFormat(time)) {
-      return reply.status(400).send({
-        message: 'Invalid time format. Expected HH:mm',
-      })
-    }
-    const timestamp = new Date(date + 'T' + time).toString()
-    if (timestamp.toString() === 'Invalid Date') {
-      return reply.status(400).send({
-        message: 'Invalid date',
-      })
-    }
+    const timestamp = await validateDateTimeFormat(date, time, reply)
 
     await knex('meals').where('id', id).update({
       name,
@@ -126,19 +54,7 @@ export async function mealsRoutes(app: FastifyInstance) {
 
   // Apagar uma refeição
   app.delete('/:id', async (request, reply) => {
-    const getMealParamsSchema = z.object({
-      id: z.string().uuid(),
-    })
-
-    const params = getMealParamsSchema.safeParse(request.params)
-
-    if (!params.success) {
-      return reply.status(400).send({
-        message: 'Invalid Meal ID. Expected a UUID',
-      })
-    }
-
-    const { id } = params.data
+    const { id } = await checkMealIdParam(request, reply)
 
     await knex('meals').where('id', id).delete()
     return reply.status(204).send()
@@ -152,19 +68,8 @@ export async function mealsRoutes(app: FastifyInstance) {
 
   // Listar uma única refeição
   app.get('/:id', async (request, reply) => {
-    const getMealParamsSchema = z.object({
-      id: z.string().uuid(),
-    })
+    const { id } = await checkMealIdParam(request, reply)
 
-    const params = getMealParamsSchema.safeParse(request.params)
-
-    if (!params.success) {
-      return reply.status(400).send({
-        message: 'Invalid Meal ID. Expected a UUID',
-      })
-    }
-
-    const { id } = params.data
     const meal = await knex('meals').where('id', id).first()
     return { meal }
   })
