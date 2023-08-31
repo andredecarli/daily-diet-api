@@ -150,8 +150,22 @@ export async function mealsRoutes(app: FastifyInstance) {
   })
 
   // Listar uma única refeição
-  app.get('/:id', async () => {
-    return { message: 'TODO: List a single meal from user' }
+  app.get('/:id', async (request, reply) => {
+    const getMealParamsSchema = z.object({
+      id: z.string().uuid(),
+    })
+
+    const params = getMealParamsSchema.safeParse(request.params)
+
+    if (!params.success) {
+      return reply.status(400).send({
+        message: 'Invalid Meal ID. Expected a UUID',
+      })
+    }
+
+    const { id } = params.data
+    const meal = await knex('meals').where('id', id).first()
+    return { meal }
   })
 
   // Metricas de um usuario
